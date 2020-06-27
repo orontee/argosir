@@ -1,0 +1,100 @@
+import asyncio
+import logging
+from typing import Any
+
+import aiohttp
+from evdev import InputDevice, categorize, ecodes
+
+LOGGER = logging.getLogger(__name__)
+
+MOPIDY_URL = 'http://localhost:6680/mopidy/rpc'
+
+_COMMAND_ID = 0
+
+_SESSION = None
+
+
+async def send_command(method: str, *, params: dict = None) -> Any:
+    global _COMMAND_ID
+    global _SESSION
+    data = {'jsonrpc': '2.0',
+            'id': _COMMAND_ID,
+            'method': method}
+    if params is not None:
+        data['params'] = params
+
+    try:
+        LOGGER.debug(f'Sending POST {MOPIDY_URL} {data}')
+        async with _SESSION.post(MOPIDY_URL, json=data) as resp:
+            content = await resp.json()
+            LOGGER.debug(f'Received {content}')
+            if 'result' in content:
+                return content['result']
+    except aiohttp.ClientResponseError as err:
+        LOGGER.error(f'Failed to request mopidy server, {err}')
+
+
+async def next_track():
+    await send_command('core.playback.next')
+
+
+async def previous_track():
+    await send_command('core.playback.previous')
+
+
+async def pause_or_resume():
+    state = await send_command('core.playback.get_state')
+    if state == 'playing':
+        await send_command('core.playback.pause')
+    elif state == 'paused':
+        await send_command('core.playback.resume')
+    elif state == 'stopped':
+        await send_command('core.playback.play')
+    else:
+        LOGGER.error(f'Unexpected state, {state}')
+
+
+async def mute_unmute():
+    mute = await send_command('core.mixer.get_mute')
+    await send_command('core.mixer.set_mute', params={'mute': not mute})
+
+
+_UP = 0
+_DOWN = 1
+CALLBACKS = {(_UP, 'KEY_RIGHT'): next_track,
+             (_UP, 'KEY_LEFT'): previous_track,
+             (_UP, 'KEY_ENTER'): pause_or_resume,
+             (_DOWN, 'KEY_MIN_INTERESTING'): mute_unmute}
+
+
+async def consumer(dev):
+    global _SESSION
+    async with aiohttp.ClientSession(raise_for_status=True) as session:
+        _SESSION = session
+        async for ev in dev.async_read_loop():
+            if ev.type == ecodes.EV_KEY:
+                ev = categorize(ev)
+                keys = [(ev.keystate, kc) for kc in ev.keycode] \
+                    if isinstance(ev.keycode, list) \
+                    else [(ev.keystate, ev.keycode)]
+                callback = None
+                for key in keys:
+                    try:
+                        callback = CALLBACKS[key]
+                    except KeyError:
+                        continue
+
+                if not callback:
+                    LOGGER.debug(f'Nothing to do for {ev}')
+                    continue
+
+                await callback()
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
+
+    dev = InputDevice('/dev/input/event0')
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(consumer(dev))
+    loop.run_until_complete(consumer(dev))
