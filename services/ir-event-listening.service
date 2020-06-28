@@ -1,0 +1,9 @@
+[Unit]
+Description=Consume infrared cell events
+After=ir-setup.service
+
+[Service]
+ExecStart=/usr/local/bin/argosir
+
+[Install]
+WantedBy=default.target

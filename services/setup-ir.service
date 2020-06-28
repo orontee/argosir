@@ -1,0 +1,9 @@
+[Unit]
+Description=Configure the infrared cell for a s.m.s.l A8 remote control
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup-ir.sh
+
+[Install]
+WantedBy = default.target
