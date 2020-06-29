@@ -62,12 +62,49 @@ async def mute_unmute():
     await send_command('core.mixer.set_mute', params={'mute': not mute})
 
 
+async def play_france_culture():
+    tltrack = await send_command('core.playback.get_current_tl_track')
+    if tltrack:
+        track = tltrack['track']
+        if track['name'] == 'franceculture-midfi.mp3':
+            await send_command('core.playback.next')
+            tlid = tltrack['tlid']
+            await send_command('core.tracklist.remove',
+                               params={'criteria': ('tlid', [tlid])})
+            return
+
+    lists = await send_command('core.playlists.as_list')
+    try:
+        rf_list = next(filter(
+            lambda l: l['name'] == 'Radio France', lists))
+    except StopIteration:
+        LOGGER.warning(f'Radio France playlist not found')
+        return
+    refs = await send_command('core.playlists.get_items',
+                              params={'uri': rf_list['uri']})
+    try:
+        fc_ref = next(filter(
+            lambda ref: ref['name'] == 'France Culture', refs))
+    except StopIteration:
+        LOGGER.warning(f'France Culture ref not found')
+        return
+    current_index = await send_command('core.tracklist.index')
+    target_index = current_index if current_index is not None else 0
+    tltracks = await send_command('core.tracklist.add',
+                                  params={'uris': [fc_ref['uri']],
+                                          'at_position': target_index})
+    tltrack = tltracks[0]
+    await send_command('core.playback.play',
+                       params={'tlid': tltrack['tlid']})
+
+
 _UP = 0
 _DOWN = 1
 CALLBACKS = {(_UP, 'KEY_RIGHT'): next_track,
              (_UP, 'KEY_LEFT'): previous_track,
              (_UP, 'KEY_ENTER'): pause_or_resume,
-             (_DOWN, 'KEY_MIN_INTERESTING'): mute_unmute}
+             (_DOWN, 'KEY_MIN_INTERESTING'): mute_unmute,
+             (_UP, 'KEY_SELECT'): play_france_culture}
 
 
 async def consumer(dev):
