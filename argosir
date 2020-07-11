@@ -1,14 +1,35 @@
 #!/usr/bin/env python3
 
 import asyncio
+from enum import Enum
 import logging
-from typing import Any
+from typing import Any, Awaitable, Callable, List, Dict, NamedTuple, Tuple
 
 import aiohttp
 from evdev import InputDevice, categorize, ecodes
 
 MOPIDY_URL = 'http://localhost:6680/mopidy/rpc'
 INPUT_DEVICE = '/dev/input/event0'
+
+# See rc_keymaps/smsl_a8 for mapped keys
+
+
+class KeyDirection(Enum):
+    UP = 0
+    DOWN = 1
+    HOLD = 2
+
+
+Callback = Callable[[], Awaitable[None]]
+
+
+class KeyConf(NamedTuple):
+    direction: KeyDirection
+    key: str
+    callback: Callback
+
+
+Callbacks = Dict[Tuple[KeyDirection, str], Callback]
 
 LOGGER = logging.getLogger(__name__)
 
@@ -20,6 +41,7 @@ _SESSION = None
 
 
 async def send_command(method: str, *, params: dict = None) -> Any:
+    """Send a command to Mopidy RPC-JSON HTTP interface."""
     global _COMMAND_ID
     global _SESSION
     data = {'jsonrpc': '2.0',
@@ -116,20 +138,44 @@ async def play_france_culture():
                        params={'tlid': tltrack['tlid']})
 
 
-# See rc_keymaps/smsl_a8 for mapped keys
-_UP = 0
-_DOWN = 1
-CALLBACKS = {(_UP, 'KEY_RIGHT'): next_track,
-             (_UP, 'KEY_LEFT'): previous_track,
-             (_UP, 'KEY_ENTER'): pause_or_resume,
-             (_DOWN, 'KEY_MIN_INTERESTING'): mute_unmute,
-             (_UP, 'KEY_UP'): volume_up,
-             (_UP, 'KEY_DOWN'): volume_down,
-             (_UP, 'KEY_SELECT'): play_france_culture}
+KEY_CONF: List[KeyConf] \
+    = [KeyConf(KeyDirection.UP, 'KEY_RIGHT', next_track),
+       KeyConf(KeyDirection.UP, 'KEY_LEFT', previous_track),
+       KeyConf(KeyDirection.UP, 'KEY_ENTER', pause_or_resume),
+       KeyConf(KeyDirection.DOWN, 'KEY_MIN_INTERESTING', mute_unmute),
+       KeyConf(KeyDirection.UP, 'KEY_UP', volume_up),
+       KeyConf(KeyDirection.UP, 'KEY_DOWN', volume_down),
+       KeyConf(KeyDirection.UP, 'KEY_SELECT', play_france_culture)]
 
 
-async def consumer(dev):
+def parse_key_conf() -> Callbacks:
+    """Parse and index the key configurations.
+
+    Key configurations are read from the global ``KEY_CONF``.
+
+    """
+    global KEY_CONF
+    callbacks: Callbacks = dict()
+    for keyconf in KEY_CONF:
+        callback_key = (keyconf.direction.value, keyconf.key)
+        callbacks[callback_key] = keyconf.callback
+        msg = f'{keyconf.key!r} {keyconf.direction} ' \
+            f'mapped to {keyconf.callback.__name__!r}'
+        LOGGER.info(msg)
+    return callbacks
+
+
+async def consumer(dev: InputDevice, callbacks: Callbacks):
+    """Read kernel input events and try to translate to function calls.
+
+    Args:
+        dev: The device to pay attention to
+
+        callbacks: Mapping from key events to callback functions
+
+    """
     global _SESSION
+    LOGGER.info(f'Listening to {dev.path}...')
     async with aiohttp.ClientSession(raise_for_status=True) as session:
         _SESSION = session
         async for ev in dev.async_read_loop():
@@ -141,7 +187,7 @@ async def consumer(dev):
                 callback = None
                 for key in keys:
                     try:
-                        callback = CALLBACKS[key]
+                        callback = callbacks[key]
                     except KeyError:
                         continue
 
@@ -149,13 +195,15 @@ async def consumer(dev):
                     LOGGER.debug(f'Nothing to do for {ev}')
                     continue
 
+                LOGGER.info(f'Calling {callback.__name__}')
                 await callback()
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
+    callbacks = parse_key_conf()
+
     dev = InputDevice(INPUT_DEVICE)
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(consumer(dev))
-    loop.run_until_complete(consumer(dev))
+    loop.run_until_complete(consumer(dev, callbacks))

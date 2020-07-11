@@ -1,3 +1,6 @@
+help:
+	@echo "install	Install keymaps, executables and services"
+
 install: install-keymaps install-executables install-services
 
 install-keymaps:
