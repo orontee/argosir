@@ -3,13 +3,14 @@
 import asyncio
 from enum import Enum
 import logging
+import random
 from typing import Any, Awaitable, Callable, List, Dict, NamedTuple, Tuple
 
 import aiohttp
 from evdev import InputDevice, categorize, ecodes
 
-MOPIDY_URL = 'http://localhost:6680/mopidy/rpc'
-INPUT_DEVICE = '/dev/input/event0'
+MOPIDY_URL = "http://localhost:6680/mopidy/rpc"
+INPUT_DEVICE = "/dev/input/event0"
 
 # See rc_keymaps/smsl_a8 for mapped keys
 
@@ -44,108 +45,119 @@ async def send_command(method: str, *, params: dict = None) -> Any:
     """Send a command to Mopidy RPC-JSON HTTP interface."""
     global _COMMAND_ID
     global _SESSION
-    data = {'jsonrpc': '2.0',
-            'id': _COMMAND_ID,
-            'method': method}
+    data = {"jsonrpc": "2.0",
+            "id": _COMMAND_ID,
+            "method": method}
     if params is not None:
-        data['params'] = params
+        data["params"] = params
 
     try:
-        LOGGER.debug(f'Sending POST {MOPIDY_URL} {data}')
+        LOGGER.debug(f"Sending POST {MOPIDY_URL} {data}")
         async with _SESSION.post(MOPIDY_URL, json=data) as resp:
             content = await resp.json()
-            LOGGER.debug(f'Received {content}')
-            if 'result' in content:
-                return content['result']
+            LOGGER.debug(f"Received {content}")
+            if "result" in content:
+                return content["result"]
     except aiohttp.ClientResponseError as err:
-        LOGGER.error(f'Failed to request mopidy server, {err}')
+        LOGGER.error(f"Failed to request mopidy server, {err}")
 
 
 async def next_track():
-    await send_command('core.playback.next')
+    await send_command("core.playback.next")
 
 
 async def previous_track():
-    await send_command('core.playback.previous')
+    await send_command("core.playback.previous")
 
 
 async def pause_or_resume():
-    state = await send_command('core.playback.get_state')
-    if state == 'playing':
-        await send_command('core.playback.pause')
-    elif state == 'paused':
-        await send_command('core.playback.resume')
-    elif state == 'stopped':
-        await send_command('core.playback.play')
+    state = await send_command("core.playback.get_state")
+    if state == "playing":
+        await send_command("core.playback.pause")
+    elif state == "paused":
+        await send_command("core.playback.resume")
+    elif state == "stopped":
+        await send_command("core.playback.play")
     else:
-        LOGGER.error(f'Unexpected state, {state}')
+        LOGGER.error(f"Unexpected state, {state}")
+
+
+async def play_random_album():
+    albums = await send_command("core.library.browse", params={"uri": "local:directory?type=album"})
+    LOGGER.debug(f"Found {len(albums)} albums")
+    album = random.choice(albums)
+    LOGGER.debug(f"Will play {album['name']}")
+    await send_command("core.tracklist.clear")
+    await send_command("core.tracklist.add", params={"uris": [album["uri"]]})
+    await send_command("core.playback.play")
 
 
 async def mute_unmute():
-    mute = await send_command('core.mixer.get_mute')
-    await send_command('core.mixer.set_mute', params={'mute': not mute})
+    mute = await send_command("core.mixer.get_mute")
+    await send_command("core.mixer.set_mute", params={"mute": not mute})
 
 
 async def volume_up():
-    volume = await send_command('core.mixer.get_volume')
+    volume = await send_command("core.mixer.get_volume")
     new_volume = min(volume + VOLUME_STEP, 100)
     if new_volume != volume:
-        await send_command('core.mixer.set_volume',
-                           params={'volume': new_volume})
+        await send_command("core.mixer.set_volume",
+                           params={"volume": new_volume})
 
 
 async def volume_down():
-    volume = await send_command('core.mixer.get_volume')
+    volume = await send_command("core.mixer.get_volume")
     new_volume = max(volume - VOLUME_STEP, 0)
     if new_volume != volume:
-        await send_command('core.mixer.set_volume',
-                           params={'volume': new_volume})
+        await send_command("core.mixer.set_volume",
+                           params={"volume": new_volume})
 
 
 async def play_france_culture():
-    tltrack = await send_command('core.playback.get_current_tl_track')
+    tltrack = await send_command("core.playback.get_current_tl_track")
     if tltrack:
-        track = tltrack['track']
-        if track['name'] == 'franceculture-midfi.mp3':
-            await send_command('core.playback.next')
-            tlid = tltrack['tlid']
-            await send_command('core.tracklist.remove',
-                               params={'criteria': ('tlid', [tlid])})
+        track = tltrack["track"]
+        if track["name"] == "franceculture-midfi.mp3":
+            await send_command("core.playback.next")
+            tlid = tltrack["tlid"]
+            await send_command("core.tracklist.remove",
+                               params={"criteria": ("tlid", [tlid])})
             return
 
-    lists = await send_command('core.playlists.as_list')
+    lists = await send_command("core.playlists.as_list")
     try:
         rf_list = next(filter(
-            lambda l: l['name'] == 'Radio France', lists))
+            lambda l: l["name"] == "Radio France", lists))
     except StopIteration:
-        LOGGER.warning(f'Radio France playlist not found')
+        LOGGER.warning(f"Radio France playlist not found")
         return
-    refs = await send_command('core.playlists.get_items',
-                              params={'uri': rf_list['uri']})
+    refs = await send_command("core.playlists.get_items",
+                              params={"uri": rf_list["uri"]})
     try:
         fc_ref = next(filter(
-            lambda ref: ref['name'] == 'France Culture', refs))
+            lambda ref: ref["name"] == "France Culture", refs))
     except StopIteration:
-        LOGGER.warning(f'France Culture ref not found')
+        LOGGER.warning(f"France Culture ref not found")
         return
-    current_index = await send_command('core.tracklist.index')
+    current_index = await send_command("core.tracklist.index")
     target_index = current_index if current_index is not None else 0
-    tltracks = await send_command('core.tracklist.add',
-                                  params={'uris': [fc_ref['uri']],
-                                          'at_position': target_index})
+    tltracks = await send_command("core.tracklist.add",
+                                  params={"uris": [fc_ref["uri"]],
+                                          "at_position": target_index})
     tltrack = tltracks[0]
-    await send_command('core.playback.play',
-                       params={'tlid': tltrack['tlid']})
+    await send_command("core.playback.play",
+                       params={"tlid": tltrack["tlid"]})
 
 
 KEY_CONF: List[KeyConf] \
-    = [KeyConf(KeyDirection.UP, 'KEY_RIGHT', next_track),
-       KeyConf(KeyDirection.UP, 'KEY_LEFT', previous_track),
-       KeyConf(KeyDirection.UP, 'KEY_ENTER', pause_or_resume),
-       KeyConf(KeyDirection.DOWN, 'KEY_MIN_INTERESTING', mute_unmute),
-       KeyConf(KeyDirection.UP, 'KEY_UP', volume_up),
-       KeyConf(KeyDirection.UP, 'KEY_DOWN', volume_down),
-       KeyConf(KeyDirection.UP, 'KEY_SELECT', play_france_culture)]
+    = [KeyConf(KeyDirection.UP, "KEY_RIGHT", next_track),
+       KeyConf(KeyDirection.UP, "KEY_LEFT", previous_track),
+       KeyConf(KeyDirection.UP, "KEY_ENTER", pause_or_resume),
+       KeyConf(KeyDirection.DOWN, "KEY_MIN_INTERESTING", mute_unmute),
+       KeyConf(KeyDirection.UP, "KEY_UP", volume_up),
+       KeyConf(KeyDirection.UP, "KEY_DOWN", volume_down),
+       KeyConf(KeyDirection.UP, "KEY_SELECT", play_random_album),
+       KeyConf(KeyDirection.UP, "KEY_FN", play_france_culture)]
 
 
 def parse_key_conf() -> Callbacks:
@@ -159,8 +171,8 @@ def parse_key_conf() -> Callbacks:
     for keyconf in KEY_CONF:
         callback_key = (keyconf.direction.value, keyconf.key)
         callbacks[callback_key] = keyconf.callback
-        msg = f'{keyconf.key!r} {keyconf.direction} ' \
-            f'mapped to {keyconf.callback.__name__!r}'
+        msg = f"{keyconf.key!r} {keyconf.direction} " \
+            f"mapped to {keyconf.callback.__name__!r}"
         LOGGER.info(msg)
     return callbacks
 
@@ -175,7 +187,7 @@ async def consumer(dev: InputDevice, callbacks: Callbacks):
 
     """
     global _SESSION
-    LOGGER.info(f'Listening to {dev.path}...')
+    LOGGER.info(f"Listening to {dev.path}...")
     async with aiohttp.ClientSession(raise_for_status=True) as session:
         _SESSION = session
         async for ev in dev.async_read_loop():
@@ -192,14 +204,14 @@ async def consumer(dev: InputDevice, callbacks: Callbacks):
                         continue
 
                 if not callback:
-                    LOGGER.debug(f'Nothing to do for {ev}')
+                    LOGGER.debug(f"Nothing to do for {ev}")
                     continue
 
-                LOGGER.info(f'Calling {callback.__name__}')
+                LOGGER.info(f"Calling {callback.__name__}")
                 await callback()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
     callbacks = parse_key_conf()
