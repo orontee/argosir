@@ -12,6 +12,8 @@ INPUT_DEVICE = '/dev/input/event0'
 
 LOGGER = logging.getLogger(__name__)
 
+VOLUME_STEP = 10
+
 _COMMAND_ID = 0
 
 _SESSION = None
@@ -62,6 +64,22 @@ async def mute_unmute():
     await send_command('core.mixer.set_mute', params={'mute': not mute})
 
 
+async def volume_up():
+    volume = await send_command('core.mixer.get_volume')
+    new_volume = min(volume + VOLUME_STEP, 100)
+    if new_volume != volume:
+        await send_command('core.mixer.set_volume',
+                           params={'volume': new_volume})
+
+
+async def volume_down():
+    volume = await send_command('core.mixer.get_volume')
+    new_volume = max(volume - VOLUME_STEP, 0)
+    if new_volume != volume:
+        await send_command('core.mixer.set_volume',
+                           params={'volume': new_volume})
+
+
 async def play_france_culture():
     tltrack = await send_command('core.playback.get_current_tl_track')
     if tltrack:
@@ -98,12 +116,15 @@ async def play_france_culture():
                        params={'tlid': tltrack['tlid']})
 
 
+# See rc_keymaps/smsl_a8 for mapped keys
 _UP = 0
 _DOWN = 1
 CALLBACKS = {(_UP, 'KEY_RIGHT'): next_track,
              (_UP, 'KEY_LEFT'): previous_track,
              (_UP, 'KEY_ENTER'): pause_or_resume,
              (_DOWN, 'KEY_MIN_INTERESTING'): mute_unmute,
+             (_UP, 'KEY_UP'): volume_up,
+             (_UP, 'KEY_DOWN'): volume_down,
              (_UP, 'KEY_SELECT'): play_france_culture}
 
 
