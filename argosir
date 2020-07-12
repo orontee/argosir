@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
 
+"""Listen to kernel input events and translate to Mopidy commands.
+
+"""
+
+import argparse
 import asyncio
 from enum import Enum
 import logging
 import random
-from typing import Any, Awaitable, Callable, List, Dict, NamedTuple, Tuple
+from typing import (Any, Awaitable, Callable, List, Dict, NamedTuple,
+                    Optional, Tuple)
 
 import aiohttp
 from evdev import InputDevice, categorize, ecodes
 
 MOPIDY_URL = "http://localhost:6680/mopidy/rpc"
-INPUT_DEVICE = "/dev/input/event0"
 
-# See rc_keymaps/smsl_a8 for mapped keys
+LOGGER = logging.getLogger("argosir")
+
+DEFAULT_DEVICE = "/dev/input/event0"
+
+VOLUME_STEP = 10
 
 
 class KeyDirection(Enum):
@@ -32,19 +41,50 @@ class KeyConf(NamedTuple):
 
 Callbacks = Dict[Tuple[KeyDirection, str], Callback]
 
-LOGGER = logging.getLogger(__name__)
-
-VOLUME_STEP = 10
-
 _COMMAND_ID = 0
 
-_SESSION = None
+_SESSION: Optional[aiohttp.ClientSession] = None
+
+
+def get_parser() -> argparse.ArgumentParser:
+    global DEFAULT_DEVICE
+    global MOPIDY_URL
+    parser = argparse.ArgumentParser(description=__doc__, prog="argosir")
+
+    parser.add_argument("--debug", action="store_true",
+                        help="enable debug logs")
+
+    d_help = "path of device to listen events for "
+    d_help += f"(default: {DEFAULT_DEVICE!r})"
+    parser.add_argument("-d", "--device", type=str, default=DEFAULT_DEVICE,
+                        help=d_help)
+
+    u_help = "URL of the Mopidy RPC-JSON API to act on "
+    u_help += "(default: {MOPIDY_URL!r})"
+    parser.add_argument("-u", "--url", type=str, default=MOPIDY_URL,
+                        help=u_help)
+
+    return parser
+
+
+def configure_logger(args: argparse.Namespace):
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter("%(levelname)s: %(message)s")
+    ch.setFormatter(formatter)
+    level = logging.DEBUG if args.debug is True else logging.INFO
+    ch.setLevel(level)
+    logger = logging.getLogger("argosir")
+    logger.setLevel(level)
+    logger.addHandler(ch)
 
 
 async def send_command(method: str, *, params: dict = None) -> Any:
     """Send a command to Mopidy RPC-JSON HTTP interface."""
     global _COMMAND_ID
     global _SESSION
+    if not _SESSION:
+        raise RuntimeError("HTTP client session not found")
+
     data = {"jsonrpc": "2.0",
             "id": _COMMAND_ID,
             "method": method}
@@ -83,10 +123,11 @@ async def pause_or_resume():
 
 
 async def play_random_album():
-    albums = await send_command("core.library.browse", params={"uri": "local:directory?type=album"})
-    LOGGER.debug(f"Found {len(albums)} albums")
+    albums = await send_command("core.library.browse",
+                                params={"uri": "local:directory?type=album"})
+    LOGGER.info(f"Found {len(albums)} albums")
     album = random.choice(albums)
-    LOGGER.debug(f"Will play {album['name']}")
+    LOGGER.info(f"Will play {album['name']}")
     await send_command("core.tracklist.clear")
     await send_command("core.tracklist.add", params={"uris": [album["uri"]]})
     await send_command("core.playback.play")
@@ -149,6 +190,9 @@ async def play_france_culture():
                        params={"tlid": tltrack["tlid"]})
 
 
+# See rc_keymaps/smsl_a8 for mapped keys
+
+
 KEY_CONF: List[KeyConf] \
     = [KeyConf(KeyDirection.UP, "KEY_RIGHT", next_track),
        KeyConf(KeyDirection.UP, "KEY_LEFT", previous_track),
@@ -187,7 +231,6 @@ async def consumer(dev: InputDevice, callbacks: Callbacks):
 
     """
     global _SESSION
-    LOGGER.info(f"Listening to {dev.path}...")
     async with aiohttp.ClientSession(raise_for_status=True) as session:
         _SESSION = session
         async for ev in dev.async_read_loop():
@@ -212,10 +255,16 @@ async def consumer(dev: InputDevice, callbacks: Callbacks):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    parser = get_parser()
+    args = parser.parse_args()
+
+    configure_logger(args)
+
+    dev = InputDevice(args.device)
+    LOGGER.info(f"Listening to {dev}...")
+    LOGGER.debug(f"Device capabilities: {dev.capabilities(verbose=True)}...")
 
     callbacks = parse_key_conf()
 
-    dev = InputDevice(INPUT_DEVICE)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(consumer(dev, callbacks))
