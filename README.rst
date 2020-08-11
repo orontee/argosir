@@ -18,10 +18,23 @@ The first components is based on a trivial Bash script. It uses
 The event translator and consumer is written in Python3 using
 ``python-evdev`` and ``aiohttp``.
 
+Install
+~~~~~~~
+
+Run::
+
+  sudo make install
+
+Targets are defined to install singles components; See ``Makefile``.
+
 Debug
 ~~~~~
 
-Simply::
+One must first stop the service if installed::
+
+  sudo systemctl stop ir-event-listening
+
+Then simply::
 
   poetry shell
   poetry install

@@ -23,6 +23,8 @@ DEFAULT_DEVICE = "/dev/input/event0"
 
 VOLUME_STEP = 10
 
+RADIO_PLAYLIST_NAME = "Radio France"
+
 
 class KeyDirection(Enum):
     UP = 0
@@ -122,6 +124,32 @@ async def pause_or_resume():
         LOGGER.error(f"Unexpected state, {state}")
 
 
+async def play_radio():
+    """Enqueue tracks from radio playlist, play first track.
+
+    The radio playlist is the first playlist with name
+    ``RADIO_PLAYLIST_NAME``.
+
+    """
+    lists = await send_command("core.playlists.as_list")
+    try:
+        rf_list = next(filter(
+            lambda l: l["name"] == RADIO_PLAYLIST_NAME, lists))
+    except StopIteration:
+        LOGGER.warning(f"{RADIO_PLAYLIST_NAME} playlist not found")
+        return
+    refs = await send_command("core.playlists.get_items",
+                              params={"uri": rf_list["uri"]})
+    await send_command("core.tracklist.clear")
+    uris = [ref["uri"] for ref in refs]
+    tltracks = await send_command("core.tracklist.add",
+                                  params={"uris": uris,
+                                          "at_position": 0})
+    tltrack = tltracks[0]
+    await send_command("core.playback.play",
+                       params={"tlid": tltrack["tlid"]})
+
+
 async def play_random_album():
     albums = await send_command("core.library.browse",
                                 params={"uri": "local:directory?type=album"})
@@ -154,42 +182,6 @@ async def volume_down():
                            params={"volume": new_volume})
 
 
-async def play_france_culture():
-    tltrack = await send_command("core.playback.get_current_tl_track")
-    if tltrack:
-        track = tltrack["track"]
-        if track["name"] == "franceculture-midfi.mp3":
-            await send_command("core.playback.next")
-            tlid = tltrack["tlid"]
-            await send_command("core.tracklist.remove",
-                               params={"criteria": ("tlid", [tlid])})
-            return
-
-    lists = await send_command("core.playlists.as_list")
-    try:
-        rf_list = next(filter(
-            lambda l: l["name"] == "Radio France", lists))
-    except StopIteration:
-        LOGGER.warning(f"Radio France playlist not found")
-        return
-    refs = await send_command("core.playlists.get_items",
-                              params={"uri": rf_list["uri"]})
-    try:
-        fc_ref = next(filter(
-            lambda ref: ref["name"] == "France Culture", refs))
-    except StopIteration:
-        LOGGER.warning(f"France Culture ref not found")
-        return
-    current_index = await send_command("core.tracklist.index")
-    target_index = current_index if current_index is not None else 0
-    tltracks = await send_command("core.tracklist.add",
-                                  params={"uris": [fc_ref["uri"]],
-                                          "at_position": target_index})
-    tltrack = tltracks[0]
-    await send_command("core.playback.play",
-                       params={"tlid": tltrack["tlid"]})
-
-
 # See rc_keymaps/smsl_a8 for mapped keys
 
 
@@ -201,7 +193,7 @@ KEY_CONF: List[KeyConf] \
        KeyConf(KeyDirection.UP, "KEY_UP", volume_up),
        KeyConf(KeyDirection.UP, "KEY_DOWN", volume_down),
        KeyConf(KeyDirection.UP, "KEY_SELECT", play_random_album),
-       KeyConf(KeyDirection.UP, "KEY_FN", play_france_culture)]
+       KeyConf(KeyDirection.UP, "KEY_FN", play_radio)]
 
 
 def parse_key_conf() -> Callbacks:

@@ -6,9 +6,13 @@ install: install-keymaps install-executables install-services
 install-keymaps:
 	cp rc_keymaps/* /etc/rc_keymaps/
 
-install-executables:
+install-executables: install_argosir install_setup-ir.sh
+
+install_argosir: argosir
 	cp argosir /usr/local/bin/ && chown root:root /usr/local/bin/argosir
-	cp setup-ir.sh /usr/local/bin/ && chown root:root /usr/local/bin/argosir
+
+install_setup-ir.sh: setup-ir.sh
+	cp setup-ir.sh /usr/local/bin/ && chown root:root /usr/local/bin/setup-ir.sh
 
 install-services:
 	cp services/*.service /etc/systemd/system/
