@@ -23,7 +23,7 @@ DEFAULT_DEVICE = "/dev/input/event0"
 
 VOLUME_STEP = 10
 
-RADIO_PLAYLIST_NAME = "Radio France"
+RADIO_PLAYLIST_NAME = "Radios"
 
 
 class KeyDirection(Enum):
