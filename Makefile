@@ -17,5 +17,5 @@ install_setup-ir.sh: setup-ir.sh
 install-services:
 	cp services/*.service /etc/systemd/system/
 	systemctl daemon-reload
-	systemctl enable ir-event-listening.service
 	systemctl enable setup-ir.service
+	systemctl enable ir-event-listening.service
