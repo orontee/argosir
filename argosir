@@ -6,6 +6,7 @@
 
 import argparse
 import asyncio
+import contextlib
 from enum import Enum
 import logging
 import random
@@ -213,6 +214,23 @@ def parse_key_conf() -> Callbacks:
     return callbacks
 
 
+@contextlib.asynccontextmanager
+async def get_session():
+    global _SESSION
+    try:
+        if _SESSION is None or _SESSION.closed:
+            LOGGER.debug(f"Starting a new HTTP session")
+            _SESSION = aiohttp.ClientSession(raise_for_status=True)
+
+        yield _SESSION
+    except (ConnectionError, RuntimeError) as error:
+        LOGGER.info(f"Not connected due to {error}")
+        _SESSION = None
+
+    finally:
+        pass
+
+
 async def consumer(dev: InputDevice, callbacks: Callbacks):
     """Read kernel input events and try to translate to function calls.
 
@@ -222,10 +240,8 @@ async def consumer(dev: InputDevice, callbacks: Callbacks):
         callbacks: Mapping from key events to callback functions
 
     """
-    global _SESSION
-    async with aiohttp.ClientSession(raise_for_status=True) as session:
-        _SESSION = session
-        async for ev in dev.async_read_loop():
+    async for ev in dev.async_read_loop():
+        async with get_session():
             if ev.type == ecodes.EV_KEY:
                 ev = categorize(ev)
                 keys = [(ev.keystate, kc) for kc in ev.keycode] \
@@ -239,7 +255,7 @@ async def consumer(dev: InputDevice, callbacks: Callbacks):
                         continue
 
                 if not callback:
-                    LOGGER.debug(f"Nothing to do for {ev}")
+                    LOGGER.debug(f"Nothing to do for key event {ev}")
                     continue
 
                 LOGGER.info(f"Calling {callback.__name__}")
