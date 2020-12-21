@@ -192,7 +192,9 @@ KEY_CONF: List[KeyConf] \
        KeyConf(KeyDirection.UP, "KEY_ENTER", pause_or_resume),
        KeyConf(KeyDirection.DOWN, "KEY_MIN_INTERESTING", mute_unmute),
        KeyConf(KeyDirection.UP, "KEY_UP", volume_up),
+       KeyConf(KeyDirection.HOLD, "KEY_UP", volume_up),
        KeyConf(KeyDirection.UP, "KEY_DOWN", volume_down),
+       KeyConf(KeyDirection.HOLD, "KEY_DOWN", volume_down),
        KeyConf(KeyDirection.UP, "KEY_SELECT", play_random_album),
        KeyConf(KeyDirection.UP, "KEY_FN", play_radio)]
 
