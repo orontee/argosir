@@ -7,7 +7,7 @@
 import argparse
 import asyncio
 import contextlib
-from enum import Enum
+from enum import IntEnum
 import logging
 import random
 from typing import (Any, Awaitable, Callable, List, Dict, NamedTuple,
@@ -22,12 +22,14 @@ LOGGER = logging.getLogger("argosir")
 
 DEFAULT_DEVICE = "/dev/input/event0"
 
-VOLUME_STEP = 10
+VOLUME_STEP = 5
 
 RADIO_PLAYLIST_NAME = "Radios"
 
+KEY_TO_SKIP = None
 
-class KeyDirection(Enum):
+
+class KeyDirection(IntEnum):
     UP = 0
     DOWN = 1
     HOLD = 2
@@ -40,9 +42,10 @@ class KeyConf(NamedTuple):
     direction: KeyDirection
     key: str
     callback: Callback
+    skip_next_key: Optional[Tuple[KeyDirection, str]] = None
 
 
-Callbacks = Dict[Tuple[KeyDirection, str], Callback]
+KeyConfHashTable = Dict[Tuple[KeyDirection, str], KeyConf]
 
 _COMMAND_ID = 0
 
@@ -111,6 +114,36 @@ async def next_track():
 
 async def previous_track():
     await send_command("core.playback.previous")
+
+
+async def scan_forward():
+    current_time_pos = await send_command("core.playback.get_time_position")
+    if current_time_pos is None:
+        LOGGER.debug("Unknown time position")
+        return
+    try:
+        target_time_pos = int(current_time_pos) + 1000
+    except ValueError:
+        LOGGER.debug(f"Failed to convert time position {current_time_pos}")
+        return
+
+    await send_command("core.playback.seek",
+                       params={"time_position": target_time_pos})
+
+
+async def scan_backward():
+    current_time_pos = await send_command("core.playback.get_time_position")
+    if current_time_pos is None:
+        LOGGER.debug("Unknown time position")
+        return
+    try:
+        target_time_pos = max(0, current_time_pos - 1000)
+    except ValueError:
+        LOGGER.debug(f"Failed to convert time position {current_time_pos}")
+        return
+
+    await send_command("core.playback.seek",
+                       params={"time_position": target_time_pos})
 
 
 async def pause_or_resume():
@@ -188,32 +221,45 @@ async def volume_down():
 
 KEY_CONF: List[KeyConf] \
     = [KeyConf(KeyDirection.UP, "KEY_RIGHT", next_track),
+       KeyConf(KeyDirection.HOLD, "KEY_RIGHT", scan_forward,
+               (KeyDirection.UP, "KEY_RIGHT")),
+
        KeyConf(KeyDirection.UP, "KEY_LEFT", previous_track),
+       KeyConf(KeyDirection.HOLD, "KEY_LEFT", scan_backward,
+               (KeyDirection.UP, "KEY_LEFT")),
+
        KeyConf(KeyDirection.UP, "KEY_ENTER", pause_or_resume),
+
        KeyConf(KeyDirection.DOWN, "KEY_MIN_INTERESTING", mute_unmute),
+
        KeyConf(KeyDirection.UP, "KEY_UP", volume_up),
+
        KeyConf(KeyDirection.HOLD, "KEY_UP", volume_up),
+
        KeyConf(KeyDirection.UP, "KEY_DOWN", volume_down),
+
        KeyConf(KeyDirection.HOLD, "KEY_DOWN", volume_down),
+
        KeyConf(KeyDirection.UP, "KEY_SELECT", play_random_album),
+
        KeyConf(KeyDirection.UP, "KEY_FN", play_radio)]
 
 
-def parse_key_conf() -> Callbacks:
+def parse_key_conf() -> KeyConfHashTable:
     """Parse and index the key configurations.
 
     Key configurations are read from the global ``KEY_CONF``.
 
     """
     global KEY_CONF
-    callbacks: Callbacks = dict()
+    table: KeyConfHashTable = dict()
     for keyconf in KEY_CONF:
-        callback_key = (keyconf.direction.value, keyconf.key)
-        callbacks[callback_key] = keyconf.callback
+        key = (keyconf.direction.value, keyconf.key)
+        table[key] = keyconf
         msg = f"{keyconf.key!r} {keyconf.direction} " \
             f"mapped to {keyconf.callback.__name__!r}"
         LOGGER.info(msg)
-    return callbacks
+    return table
 
 
 @contextlib.asynccontextmanager
@@ -233,15 +279,16 @@ async def get_session():
         pass
 
 
-async def consumer(dev: InputDevice, callbacks: Callbacks):
+async def consumer(dev: InputDevice, table: KeyConfHashTable):
     """Read kernel input events and try to translate to function calls.
 
     Args:
         dev: The device to pay attention to
 
-        callbacks: Mapping from key events to callback functions
+        table: Mapping from key events to key configuration
 
     """
+    global KEY_TO_SKIP
     async for ev in dev.async_read_loop():
         async with get_session():
             if ev.type == ecodes.EV_KEY:
@@ -249,19 +296,30 @@ async def consumer(dev: InputDevice, callbacks: Callbacks):
                 keys = [(ev.keystate, kc) for kc in ev.keycode] \
                     if isinstance(ev.keycode, list) \
                     else [(ev.keystate, ev.keycode)]
-                callback = None
+
                 for key in keys:
+                    LOGGER.debug(f"Processing {key}")
+                    if KEY_TO_SKIP:
+                        if key == KEY_TO_SKIP:
+                            LOGGER.debug(f"Deliberately skipping key event {key}")
+                            KEY_TO_SKIP = None
+                            continue
+
                     try:
-                        callback = callbacks[key]
+                        keyconf = table[key]
                     except KeyError:
                         continue
 
-                if not callback:
-                    LOGGER.debug(f"Nothing to do for key event {ev}")
-                    continue
+                    callback = keyconf.callback
+                    if not callback:
+                        LOGGER.debug(f"Nothing to do for key event {key}")
+                        continue
 
-                LOGGER.info(f"Calling {callback.__name__}")
-                await callback()
+                    LOGGER.info(f"Calling {callback.__name__}")
+                    await callback()
+                    if keyconf.skip_next_key:
+                        KEY_TO_SKIP = keyconf.skip_next_key
+                        LOGGER.debug(f"Will skip next {KEY_TO_SKIP}")
 
 
 if __name__ == "__main__":
@@ -274,7 +332,7 @@ if __name__ == "__main__":
     LOGGER.info(f"Listening to {dev}...")
     LOGGER.debug(f"Device capabilities: {dev.capabilities(verbose=True)}...")
 
-    callbacks = parse_key_conf()
+    keyconf_table = parse_key_conf()
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(consumer(dev, callbacks))
+    loop.run_until_complete(consumer(dev, keyconf_table))
