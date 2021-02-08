@@ -104,7 +104,7 @@ async def send_command(method: str, *, params: dict = None) -> Any:
             LOGGER.debug(f"Received {content}")
             if "result" in content:
                 return content["result"]
-    except aiohttp.ClientResponseError as err:
+    except aiohttp.ClientError as err:
         LOGGER.error(f"Failed to request mopidy server, {err}")
 
 
