@@ -166,6 +166,10 @@ async def play_radio():
 
     """
     lists = await send_command("core.playlists.as_list")
+    if lists is None:
+        LOGGER.warning(f"No playlist found")
+        return
+
     try:
         rf_list = next(filter(
             lambda l: l["name"] == RADIO_PLAYLIST_NAME, lists))
@@ -187,6 +191,10 @@ async def play_radio():
 async def play_random_album():
     albums = await send_command("core.library.browse",
                                 params={"uri": "local:directory?type=album"})
+    if albums is None:
+        LOGGER.warning(f"No album found")
+        return
+
     LOGGER.info(f"Found {len(albums)} albums")
     album = random.choice(albums)
     LOGGER.info(f"Will play {album['name']}")
