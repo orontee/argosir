@@ -21,11 +21,15 @@ The event translator and consumer is written in Python3 using
 Install
 ~~~~~~~
 
+Make sure you have the dependencies installed::
+
+  sudo apt install -y git ir-keytable python3-evdev python3-aiohttp
+
 Run::
 
   sudo make install
 
-Targets are defined to install singles components; See ``Makefile``.
+Targets are defined to install singles components; See ``Makefile`` for details.
 
 Debug
 ~~~~~
