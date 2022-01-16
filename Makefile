@@ -4,6 +4,7 @@ help:
 install: install-keymaps install-executables install-services
 
 install-keymaps:
+	mkdir -p /etc/rc_keymaps/
 	cp rc_keymaps/* /etc/rc_keymaps/
 
 install-executables: install_argosir install_setup-ir.sh
