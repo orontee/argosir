@@ -20,7 +20,7 @@ MOPIDY_URL = "http://localhost:6680/mopidy/rpc"
 
 LOGGER = logging.getLogger("argosir")
 
-DEFAULT_DEVICE = "/dev/input/event0"
+DEFAULT_DEVICE = "/dev/input/ir-recv"
 
 VOLUME_STEP = 5
 

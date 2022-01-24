@@ -21,11 +21,15 @@ The event translator and consumer is written in Python3 using
 Install
 ~~~~~~~
 
-Make sure you have the dependencies installed::
+Make sure there's a fix path to the IR receiver device: Eg using an udev rule::
+
+  echo 'KERNELS=="input[0-9]*", SUBSYSTEMS=="input", ATTRS{name}=="gpio_ir_recv", SYMLINK+="input/ir-recv"' | sudo tee /etc/udev/rules.d/99-gpio_ir_recv.rules
+
+Then install dependencies at system level::
 
   sudo apt install -y git ir-keytable python3-evdev python3-aiohttp
 
-Run::
+Finally run::
 
   sudo make install
 
