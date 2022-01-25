@@ -23,7 +23,7 @@ Install
 
 Make sure there's a fix path to the IR receiver device: Eg using an udev rule::
 
-  echo 'KERNELS=="input[0-9]*", SUBSYSTEMS=="input", ATTRS{name}=="gpio_ir_recv", SYMLINK+="input/ir-recv"' | sudo tee /etc/udev/rules.d/99-gpio_ir_recv.rules
+  echo 'KERNELS=="input[0-9]*", SUBSYSTEMS=="input", ATTRS{name}=="gpio_ir_recv", SYMLINK+="input/ir-recv", ENV{SYSTEMD_WANTS}="setup-ir.service"' | sudo tee /etc/udev/rules.d/99-gpio_ir_recv.rules
 
 Then install dependencies at system level::
 
@@ -32,6 +32,8 @@ Then install dependencies at system level::
 Finally run::
 
   sudo make install
+  sudo udevadm control --reload
+  sudo udevadm trigger
 
 Targets are defined to install singles components; See ``Makefile`` for details.
 

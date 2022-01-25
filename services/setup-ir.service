@@ -6,4 +6,4 @@ Type=oneshot
 ExecStart=/usr/local/bin/setup-ir.sh
 
 [Install]
-WantedBy = default.target
+WantedBy=default.target

@@ -20,3 +20,6 @@ install-services:
 	systemctl daemon-reload
 	systemctl enable setup-ir.service
 	systemctl enable ir-event-listening.service
+	systemctl start setup-ir.service
+	systemctl start ir-event-listening.service
+
