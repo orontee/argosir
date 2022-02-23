@@ -91,6 +91,7 @@ async def send_command(method: str, *, params: dict = None) -> Any:
     if not _SESSION:
         raise RuntimeError("HTTP client session not found")
 
+    _COMMAND_ID += 1
     data = {"jsonrpc": "2.0",
             "id": _COMMAND_ID,
             "method": method}
