@@ -1,7 +1,7 @@
 [Unit]
 Description=Consume infrared cell events
-Requires=setup-ir.service
-Requires=mopidy.service
+Requires=setup-ir.service mopidy.service
+After=setup-ir.service mopidy.service
 
 [Service]
 ExecStart=/usr/local/bin/argosir
