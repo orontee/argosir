@@ -24,7 +24,7 @@ DEFAULT_DEVICE = "/dev/input/ir-recv"
 
 VOLUME_STEP = 5
 
-RADIO_PLAYLIST_NAME = "Radios"
+RADIO_PLAYLIST_NAME = "Radio France"
 
 KEY_TO_SKIP = None
 
