@@ -24,7 +24,7 @@ DEFAULT_DEVICE = "/dev/input/ir-recv"
 
 VOLUME_STEP = 5
 
-RADIO_PLAYLIST_NAME = "Radio France"
+FAVORITE_PLAYLIST_NAME = "Radio France 📻"
 
 KEY_TO_SKIP = None
 
@@ -159,11 +159,11 @@ async def pause_or_resume():
         LOGGER.error(f"Unexpected state, {state}")
 
 
-async def play_radio():
-    """Enqueue tracks from radio playlist, play first track.
+async def play_favorite_playlist():
+    """Enqueue tracks from favorite playlist, play first track.
 
-    The radio playlist is the first playlist with name
-    ``RADIO_PLAYLIST_NAME``.
+    The favorite playlist is the first playlist with name
+    ``FAVORITE_PLAYLIST_NAME``.
 
     """
     lists = await send_command("core.playlists.as_list")
@@ -173,9 +173,9 @@ async def play_radio():
 
     try:
         rf_list = next(filter(
-            lambda l: l["name"] == RADIO_PLAYLIST_NAME, lists))
+            lambda l: l["name"] == FAVORITE_PLAYLIST_NAME, lists))
     except StopIteration:
-        LOGGER.warning(f"{RADIO_PLAYLIST_NAME} playlist not found")
+        LOGGER.warning(f"{FAVORITE_PLAYLIST_NAME} playlist not found")
         return
     refs = await send_command("core.playlists.get_items",
                               params={"uri": rf_list["uri"]})
@@ -251,7 +251,7 @@ KEY_CONF: List[KeyConf] \
 
        KeyConf(KeyDirection.UP, "KEY_SELECT", play_random_album),
 
-       KeyConf(KeyDirection.UP, "KEY_FN", play_radio)]
+       KeyConf(KeyDirection.UP, "KEY_FN", play_favorite_playlist)]
 
 
 def parse_key_conf() -> KeyConfHashTable:

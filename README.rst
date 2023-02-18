@@ -2,7 +2,7 @@
 argosir
 ========
 
-Control a Mopidy server through an s.m.s.l A8 remote control.
+Control a Mopidy server through a s.m.s.l A8 remote control.
 
 It's made of two simple components:
 
@@ -35,7 +35,7 @@ Finally run::
   sudo udevadm control --reload
   sudo udevadm trigger
 
-Targets are defined to install singles components; See ``Makefile`` for details.
+Targets are defined to install single components; See ``Makefile`` for details.
 
 Debug
 ~~~~~
