@@ -10,8 +10,7 @@ import contextlib
 from enum import IntEnum
 import logging
 import random
-from typing import (Any, Awaitable, Callable, List, Dict, NamedTuple,
-                    Optional, Tuple)
+from typing import Any, Awaitable, Callable, List, Dict, NamedTuple, Optional, Tuple
 
 import aiohttp
 from evdev import InputDevice, categorize, ecodes
@@ -24,7 +23,7 @@ DEFAULT_DEVICE = "/dev/input/ir-recv"
 
 VOLUME_STEP = 5
 
-FAVORITE_PLAYLIST_NAME = "Radio France 📻"
+FAVORITE_STREAM_URI = "http://direct.franceculture.fr/live/franceculture-midfi.mp3"
 
 KEY_TO_SKIP = None
 
@@ -41,7 +40,7 @@ Callback = Callable[[], Awaitable[None]]
 class KeyConf(NamedTuple):
     direction: KeyDirection
     key: str
-    callback: Callback
+    callback: Optional[Callback]
     skip_next_key: Optional[Tuple[KeyDirection, str]] = None
 
 
@@ -57,18 +56,15 @@ def get_parser() -> argparse.ArgumentParser:
     global MOPIDY_URL
     parser = argparse.ArgumentParser(description=__doc__, prog="argosir")
 
-    parser.add_argument("--debug", action="store_true",
-                        help="enable debug logs")
+    parser.add_argument("--debug", action="store_true", help="enable debug logs")
 
     d_help = "path of device to listen events for "
     d_help += f"(default: {DEFAULT_DEVICE!r})"
-    parser.add_argument("-d", "--device", type=str, default=DEFAULT_DEVICE,
-                        help=d_help)
+    parser.add_argument("-d", "--device", type=str, default=DEFAULT_DEVICE, help=d_help)
 
     u_help = "URL of the Mopidy RPC-JSON API to act on "
     u_help += "(default: {MOPIDY_URL!r})"
-    parser.add_argument("-u", "--url", type=str, default=MOPIDY_URL,
-                        help=u_help)
+    parser.add_argument("-u", "--url", type=str, default=MOPIDY_URL, help=u_help)
 
     return parser
 
@@ -84,7 +80,7 @@ def configure_logger(args: argparse.Namespace):
     logger.addHandler(ch)
 
 
-async def send_command(method: str, *, params: dict = None) -> Any:
+async def send_command(method: str, *, params: Optional[Dict] = None) -> Any:
     """Send a command to Mopidy RPC-JSON HTTP interface."""
     global _COMMAND_ID
     global _SESSION
@@ -92,9 +88,7 @@ async def send_command(method: str, *, params: dict = None) -> Any:
         raise RuntimeError("HTTP client session not found")
 
     _COMMAND_ID += 1
-    data = {"jsonrpc": "2.0",
-            "id": _COMMAND_ID,
-            "method": method}
+    data = {"jsonrpc": "2.0", "id": _COMMAND_ID, "method": method}
     if params is not None:
         data["params"] = params
 
@@ -128,8 +122,7 @@ async def scan_forward():
         LOGGER.debug(f"Failed to convert time position {current_time_pos}")
         return
 
-    await send_command("core.playback.seek",
-                       params={"time_position": target_time_pos})
+    await send_command("core.playback.seek", params={"time_position": target_time_pos})
 
 
 async def scan_backward():
@@ -143,8 +136,7 @@ async def scan_backward():
         LOGGER.debug(f"Failed to convert time position {current_time_pos}")
         return
 
-    await send_command("core.playback.seek",
-                       params={"time_position": target_time_pos})
+    await send_command("core.playback.seek", params={"time_position": target_time_pos})
 
 
 async def pause_or_resume():
@@ -159,41 +151,27 @@ async def pause_or_resume():
         LOGGER.error(f"Unexpected state, {state}")
 
 
-async def play_favorite_playlist():
-    """Enqueue tracks from favorite playlist, play first track.
+async def play_favorite_stream():
+    """Enqueue favorite stream.
 
-    The favorite playlist is the first playlist with name
-    ``FAVORITE_PLAYLIST_NAME``.
+    The favorite stream is the stream with URI
+    ``FAVORITE_STREAM_URI``.
 
     """
-    lists = await send_command("core.playlists.as_list")
-    if lists is None:
-        LOGGER.warning(f"No playlist found")
-        return
-
-    try:
-        rf_list = next(filter(
-            lambda l: l["name"] == FAVORITE_PLAYLIST_NAME, lists))
-    except StopIteration:
-        LOGGER.warning(f"{FAVORITE_PLAYLIST_NAME} playlist not found")
-        return
-    refs = await send_command("core.playlists.get_items",
-                              params={"uri": rf_list["uri"]})
-    await send_command("core.tracklist.clear")
-    uris = [ref["uri"] for ref in refs]
-    tltracks = await send_command("core.tracklist.add",
-                                  params={"uris": uris,
-                                          "at_position": 0})
+    uris = [FAVORITE_STREAM_URI]
+    tltracks = await send_command(
+        "core.tracklist.add", params={"uris": uris, "at_position": 0}
+    )
     tltrack = tltracks[0]
-    await send_command("core.playback.play",
-                       params={"tlid": tltrack["tlid"]})
+    await send_command("core.playback.play", params={"tlid": tltrack["tlid"]})
 
 
 async def play_random_album():
-    albums = await send_command("core.library.browse",
-                                params={"uri": "local:directory?type=album"})
+    albums = await send_command(
+        "core.library.browse", params={"uri": "local:directory?type=album"}
+    )
     if albums is None:
-        LOGGER.warning(f"No album found")
+        LOGGER.warning("No album found")
         return
 
     LOGGER.info(f"Found {len(albums)} albums")
@@ -213,45 +191,46 @@ async def volume_up():
     volume = await send_command("core.mixer.get_volume")
     new_volume = min(volume + VOLUME_STEP, 100)
     if new_volume != volume:
-        await send_command("core.mixer.set_volume",
-                           params={"volume": new_volume})
+        await send_command("core.mixer.set_volume", params={"volume": new_volume})
 
 
 async def volume_down():
     volume = await send_command("core.mixer.get_volume")
     new_volume = max(volume - VOLUME_STEP, 0)
     if new_volume != volume:
-        await send_command("core.mixer.set_volume",
-                           params={"volume": new_volume})
+        await send_command("core.mixer.set_volume", params={"volume": new_volume})
 
 
 # See rc_keymaps/smsl_a8 for mapped keys
 
 
-KEY_CONF: List[KeyConf] \
-    = [KeyConf(KeyDirection.UP, "KEY_RIGHT", next_track),
-       KeyConf(KeyDirection.HOLD, "KEY_RIGHT", scan_forward,
-               (KeyDirection.UP, "KEY_RIGHT")),
-
-       KeyConf(KeyDirection.UP, "KEY_LEFT", previous_track),
-       KeyConf(KeyDirection.HOLD, "KEY_LEFT", scan_backward,
-               (KeyDirection.UP, "KEY_LEFT")),
-
-       KeyConf(KeyDirection.UP, "KEY_ENTER", pause_or_resume),
-
-       KeyConf(KeyDirection.DOWN, "KEY_MIN_INTERESTING", mute_unmute),
-
-       KeyConf(KeyDirection.UP, "KEY_UP", volume_up),
-
-       KeyConf(KeyDirection.HOLD, "KEY_UP", volume_up),
-
-       KeyConf(KeyDirection.UP, "KEY_DOWN", volume_down),
-
-       KeyConf(KeyDirection.HOLD, "KEY_DOWN", volume_down),
-
-       KeyConf(KeyDirection.UP, "KEY_SELECT", play_random_album),
-
-       KeyConf(KeyDirection.UP, "KEY_FN", play_favorite_playlist)]
+KEY_CONF: List[KeyConf] = [
+    KeyConf(KeyDirection.UP, "KEY_RIGHT", next_track),
+    KeyConf(
+        KeyDirection.HOLD, "KEY_RIGHT", scan_forward, (KeyDirection.UP, "KEY_RIGHT")
+    ),
+    KeyConf(KeyDirection.UP, "KEY_LEFT", previous_track),
+    KeyConf(
+        KeyDirection.HOLD, "KEY_LEFT", scan_backward, (KeyDirection.UP, "KEY_LEFT")
+    ),
+    KeyConf(KeyDirection.UP, "KEY_ENTER", pause_or_resume),
+    KeyConf(KeyDirection.DOWN, "KEY_MIN_INTERESTING", None),
+    KeyConf(KeyDirection.UP, "KEY_UP", None),
+    KeyConf(KeyDirection.HOLD, "KEY_UP", None),
+    KeyConf(KeyDirection.UP, "KEY_DOWN", None),
+    KeyConf(KeyDirection.HOLD, "KEY_DOWN", None),
+    #
+    # When using Mopidy with a software mixer, one would prefer:
+    #
+    # KeyConf(KeyDirection.DOWN, "KEY_MIN_INTERESTING", mute_unmute),
+    # KeyConf(KeyDirection.UP, "KEY_UP", volume_up),
+    # KeyConf(KeyDirection.HOLD, "KEY_UP", volume_up),
+    # KeyConf(KeyDirection.UP, "KEY_DOWN", volume_down),
+    # KeyConf(KeyDirection.HOLD, "KEY_DOWN", volume_down),
+    #
+    KeyConf(KeyDirection.UP, "KEY_SELECT", play_random_album),
+    KeyConf(KeyDirection.UP, "KEY_FN", play_favorite_stream),
+]
 
 
 def parse_key_conf() -> KeyConfHashTable:
@@ -263,10 +242,17 @@ def parse_key_conf() -> KeyConfHashTable:
     global KEY_CONF
     table: KeyConfHashTable = dict()
     for keyconf in KEY_CONF:
-        key = (keyconf.direction.value, keyconf.key)
+        key = (KeyDirection(keyconf.direction.value), keyconf.key)
         table[key] = keyconf
-        msg = f"{keyconf.key!r} {keyconf.direction} " \
-            f"mapped to {keyconf.callback.__name__!r}"
+        callback = keyconf.callback
+        if callback is not None:
+            msg = (
+                f"{keyconf.key!r} {keyconf.direction} "
+                f"mapped to {callback.__name__!r}"
+            )
+        else:
+            msg = f"{keyconf.key!r} {keyconf.direction} not mapped"
+
         LOGGER.info(msg)
     return table
 
@@ -276,7 +262,7 @@ async def get_session():
     global _SESSION
     try:
         if _SESSION is None or _SESSION.closed:
-            LOGGER.debug(f"Starting a new HTTP session")
+            LOGGER.debug("Starting a new HTTP session")
             _SESSION = aiohttp.ClientSession(raise_for_status=True)
 
         yield _SESSION
@@ -302,9 +288,11 @@ async def consumer(dev: InputDevice, table: KeyConfHashTable):
         async with get_session():
             if ev.type == ecodes.EV_KEY:
                 ev = categorize(ev)
-                keys = [(ev.keystate, kc) for kc in ev.keycode] \
-                    if isinstance(ev.keycode, list) \
+                keys = (
+                    [(ev.keystate, kc) for kc in ev.keycode]
+                    if isinstance(ev.keycode, list)
                     else [(ev.keystate, ev.keycode)]
+                )
 
                 for key in keys:
                     LOGGER.debug(f"Processing {key}")
@@ -320,7 +308,7 @@ async def consumer(dev: InputDevice, table: KeyConfHashTable):
                         continue
 
                     callback = keyconf.callback
-                    if not callback:
+                    if callback is None:
                         LOGGER.debug(f"Nothing to do for key event {key}")
                         continue
 

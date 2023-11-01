@@ -47,9 +47,7 @@ One must first stop the service if installed::
 
 Then simply::
 
-  poetry shell
-  poetry install
-  ./argosir --debug
+  sudo ./argosir --debug
 
 For a list of supported command line arguments and defaults::
 
