@@ -2,7 +2,8 @@
 argosir
 ========
 
-Control a Mopidy server through a s.m.s.l A8 remote control.
+Control a Mopidy server running on a host with IR receiver through a
+s.m.s.l A8 remote control.
 
 It's made of two simple components:
 
