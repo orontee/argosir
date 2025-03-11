@@ -24,17 +24,23 @@ Install
 
 Make sure there's a fix path to the IR receiver device: Eg using an udev rule::
 
-  echo 'KERNELS=="input[0-9]*", SUBSYSTEMS=="input", ATTRS{name}=="gpio_ir_recv", SYMLINK+="input/ir-recv", ENV{SYSTEMD_WANTS}+="setup-ir.service"' | sudo tee /etc/udev/rules.d/99-gpio_ir_recv.rules
+  $ echo 'KERNELS=="input[0-9]*", SUBSYSTEMS=="input", ATTRS{name}=="gpio_ir_recv", SYMLINK+="input/ir-recv", ENV{SYSTEMD_WANTS}+="setup-ir.service"' | sudo tee /etc/udev/rules.d/99-gpio_ir_recv.rules
 
 Then install dependencies at system level::
 
-  sudo apt install -y git ir-keytable python3-evdev python3-aiohttp
+  $ sudo apt install -y git ir-keytable python3-evdev python3-aiohttp
 
 Finally run::
 
-  sudo make install
-  sudo udevadm control --reload
-  sudo udevadm trigger
+  $ git clone https://github.com/orontee/argosir.git
+  $ pushd argosir
+  argosir$ sudo make install
+  argosir$ sudo udevadm control --reload
+  argosir$ sudo udevadm trigger
+
+and check::
+
+  argosir$ sudo systemctl status setup-ir.service
 
 Targets are defined to install single components; See ``Makefile`` for details.
 
@@ -43,12 +49,12 @@ Debug
 
 One must first stop the service if installed::
 
-  sudo systemctl stop ir-event-listening
+  argosir$ sudo systemctl stop ir-event-listening
 
 Then simply::
 
-  sudo ./argosir --debug
+  argosir$ sudo ./argosir --debug
 
 For a list of supported command line arguments and defaults::
 
-  ./argosir --help
+  argosir$ ./argosir --help
