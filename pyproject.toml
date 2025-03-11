@@ -4,13 +4,14 @@ version = "0.1.0"
 description = "Callback to IR events on argos"
 authors = ["Matthias Meulien <orontee@gmail.com>"]
 license = "GPL-3.0"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "~3.11"
 evdev = "~1.9"
 aiohttp = "~3.11"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pycodestyle = "~2.12"
 mypy = "~1.15"
 black = "~23.12"
