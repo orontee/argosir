@@ -30,6 +30,9 @@ Then install dependencies at system level::
 
   $ sudo apt install -y git ir-keytable python3-evdev python3-aiohttp
 
+Edit the configuration file ``argosir.yaml`` to match the host
+configuration and wanted key map.
+
 Finally run::
 
   $ git clone https://github.com/orontee/argosir.git

@@ -1,0 +1,55 @@
+---
+# device: /dev/input/ir-recv
+# mopidy:
+#   url: http://localhost:6680/mopidy/rpc
+commands:
+  # volume_step: 5
+  favorite_stream_uri: http://direct.franceculture.fr/live/franceculture-midfi.mp3
+definitions:
+  # See rc_keymaps/smsl_a8 for mapped keys
+  software_mixer_keys: &software_mixer_keys
+    - key: KEY_MIN_INTERESTING
+      direction: DOWN
+      callback: mute_unmute
+    - key: KEY_UP
+      direction: UP
+      callback: volume_up
+    - key: KEY_UP
+      direction: HOLD
+      callback: volume_up
+    - key: KEY_DOWN
+      direction: DOWN
+      callback: volume_down
+    - key: KEY_DOWN
+      direction: HOLD
+      callback: volume_down
+  tracklist_keys: &tracklist_keys
+    - key: KEY_RIGHT
+      direction: UP
+      callback: next_track
+    - key: KEY_RIGHT
+      direction: HOLD
+      callback: scan_forward
+      skip_next_key: ["UP", "KEY_RIGHT"]
+    - key: KEY_LEFT
+      direction: UP
+      callback: previous_track
+  playback_keys: &playback_keys
+    - key: KEY_LEFT
+      direction: HOLD
+      callback: scan_backward
+      skip_next_key: ["UP", "KEY_LEFT"]
+    - key: KEY_ENTER
+      direction: UP
+      callback: pause_or_resume
+  library_keys: &library_keys
+    - key: KEY_SELECT
+      direction: UP
+      callback: play_random_album
+    - key: KEY_FN
+      direction: UP
+      callback: play_favorite_stream
+keys:
+  - *tracklist_keys
+  - *playback_keys
+  - *library_keys

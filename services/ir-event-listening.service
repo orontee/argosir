@@ -4,7 +4,7 @@ Requires=setup-ir.service mopidy.service
 After=setup-ir.service mopidy.service
 
 [Service]
-ExecStart=/usr/local/bin/argosir
+ExecStart=/usr/local/bin/argosir -c /etc/argosir.yaml
 
 [Install]
 WantedBy=default.target
