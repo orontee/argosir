@@ -10,10 +10,20 @@ import contextlib
 from enum import IntEnum
 import logging
 import random
-from typing import Any, Awaitable, Callable, List, Dict, NamedTuple, Optional, Tuple
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    List,
+    Dict,
+    NamedTuple,
+    Optional,
+    Tuple,
+    cast,
+)
 
 import aiohttp
-from evdev import InputDevice, categorize, ecodes
+from evdev import InputDevice, KeyEvent, categorize, ecodes
 
 MOPIDY_URL = "http://localhost:6680/mopidy/rpc"
 
@@ -287,11 +297,12 @@ async def consumer(dev: InputDevice, table: KeyConfHashTable):
     async for ev in dev.async_read_loop():
         async with get_session():
             if ev.type == ecodes.EV_KEY:
-                ev = categorize(ev)
+                key_ev = categorize(ev)
+                assert isinstance(key_ev, KeyEvent)
                 keys = (
-                    [(ev.keystate, kc) for kc in ev.keycode]
-                    if isinstance(ev.keycode, list)
-                    else [(ev.keystate, ev.keycode)]
+                    [(KeyDirection(key_ev.keystate), kc) for kc in key_ev.keycode]
+                    if isinstance(key_ev.keycode, list)
+                    else [(KeyDirection(key_ev.keystate), cast(str, key_ev.keycode))]
                 )
 
                 for key in keys:
