@@ -7,17 +7,17 @@ install-keymaps:
 	mkdir -p /etc/rc_keymaps/
 	cp rc_keymaps/* /etc/rc_keymaps/
 
-install-executables: install_argosir install_setup-ir.sh
+install-executables: install_mopidyir install_setup-ir.sh
 
-install_argosir: argosir
-	cp argosir /usr/local/bin/ && chown root:root /usr/local/bin/argosir
+install_mopidyir: mopidyir
+	cp mopidyir /usr/local/bin/ && chown root:root /usr/local/bin/mopidyir
 
 install_setup-ir.sh: setup-ir.sh
 	cp setup-ir.sh /usr/local/bin/ && chown root:root /usr/local/bin/setup-ir.sh
 
 install-services:
 	cp services/*.service /etc/systemd/system/
-	cp argosir.yaml /etc/
+	cp mopidyir.yaml /etc/
 	systemctl daemon-reload
 	systemctl enable setup-ir.service
 	systemctl enable ir-event-listening.service

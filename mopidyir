@@ -26,7 +26,7 @@ import aiohttp
 from evdev import InputDevice, KeyEvent, categorize, ecodes
 import yaml
 
-LOGGER = logging.getLogger("argosir")
+LOGGER = logging.getLogger("mopidyir")
 
 
 class KeyDirection(IntEnum):
@@ -76,7 +76,7 @@ _KEY_TO_SKIP = None
 
 
 def get_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__, prog="argosir")
+    parser = argparse.ArgumentParser(description=__doc__, prog="mopidyir")
     parser.add_argument("--debug", action="store_true", help="enable debug logs")
     parser.add_argument(
         "-c",
@@ -95,7 +95,7 @@ def configure_logger(args: argparse.Namespace):
     ch.setFormatter(formatter)
     level = logging.DEBUG if args.debug is True else logging.INFO
     ch.setLevel(level)
-    logger = logging.getLogger("argosir")
+    logger = logging.getLogger("mopidyir")
     logger.setLevel(level)
     logger.addHandler(ch)
 

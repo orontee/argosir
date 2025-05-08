@@ -1,5 +1,5 @@
 [Unit]
-Description=Configure the infrared cell for a s.m.s.l A8 remote control
+Description=Configure the infrared cell
 
 [Service]
 Type=oneshot

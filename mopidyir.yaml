@@ -1,6 +1,6 @@
 ---
-# See rc_keymaps/smsl_a8 for mapped keys
-# See _CALLBACKS in argosir script for supported callbacks
+# See rc_keymap for keycode (eg rc_keymaps/smsl_a8)
+# See mopidyir script for implemented Mopidy actions
 #
 # device: /dev/input/ir-recv
 # mopidy:

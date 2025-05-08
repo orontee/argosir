@@ -1,10 +1,10 @@
 [Unit]
-Description=Consume infrared cell events
+Description=Mopidy callbacks to IR events
 Requires=setup-ir.service mopidy.service
 After=setup-ir.service mopidy.service
 
 [Service]
-ExecStart=/usr/local/bin/argosir -c /etc/argosir.yaml
+ExecStart=/usr/local/bin/mopidyir -c /etc/mopidyir.yaml
 
 [Install]
 WantedBy=default.target
