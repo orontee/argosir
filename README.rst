@@ -56,7 +56,7 @@ One must first stop the service if installed::
 
 Then simply::
 
-  argosir$ sudo ./argosir --debug
+  argosir$ sudo ./argosir --debug --config argosir.yaml
 
 For a list of supported command line arguments and defaults::
 

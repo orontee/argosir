@@ -1,4 +1,7 @@
 ---
+# See rc_keymaps/smsl_a8 for mapped keys
+# See _CALLBACKS in argosir script for supported callbacks
+#
 # device: /dev/input/ir-recv
 # mopidy:
 #   url: http://localhost:6680/mopidy/rpc
@@ -6,7 +9,7 @@ commands:
   # volume_step: 5
   favorite_stream_uri: http://direct.franceculture.fr/live/franceculture-midfi.mp3
 definitions:
-  # See rc_keymaps/smsl_a8 for mapped keys
+  # To be referenced in "keys" list below
   software_mixer_keys: &software_mixer_keys
     - key: KEY_MIN_INTERESTING
       direction: DOWN
