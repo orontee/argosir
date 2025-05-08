@@ -1,7 +1,9 @@
 ---
-# See rc_keymap for keycode (eg rc_keymaps/smsl_a8)
-# See mopidyir script for implemented Mopidy actions
+# See rc_keymap defined in setup-ir.sh for keycode (eg
+# rc_keymaps/smsl_a8)
 #
+# See mopidyir script for implemented Mopidy actions
+
 # device: /dev/input/ir-recv
 # mopidy:
 #   url: http://localhost:6680/mopidy/rpc

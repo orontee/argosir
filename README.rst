@@ -2,7 +2,7 @@
  mopidyir
 ==========
 
-IR-control of a Mopidy server running on a host with IR receiver.
+Control a Mopidy server through an IR receiver.
 
 It's made of two simple components:
 
@@ -45,16 +45,27 @@ About the remote control
 
 A remote control keymap must be configured for IR scancodes to be
 converted to Linux keycode. This keymap depends on the remote control
-that will be used.  ⚠️ **There's no automatic way to know what remote
-control will be used!**
+that will be used.
+
+⚠️ **There's no automatic way to know what remote control will be
+used!**
 
 This configuration must be done in the `setup-ir.sh </setup-ir.sh>`_
 script where the ``KEYMAP_PATH`` value is expected to match the path to
 a remote control keymap describing the remote control that will be
 used.
 
+System keymaps, usually under ``/lib/udev/rc_keymaps``, can be used.
+
+One can also build a custom keymaps (read ``rc_keymap`` manual page
+for details on the expected format); Eg using `ir-keytable --test` to
+identify scancodes. It then must be saved in the `rc_keymaps/
+</rc_keymaps>` directory to be copied to ``/etc/rc_keymaps`` during
+installation.
+
 💡 The default value of ``KEYMAP_PATH`` match the remote control of a
-`s.m.s.l A8 <https://www.smsl-audio.com>`_ amplifier.
+`s.m.s.l A8 <https://www.smsl-audio.com>`_ amplifier; The keymap file
+can be found in `rc_keymaps/smsl_a8.toml </rc_keymaps/smsl_a8.toml>`_.
 
 Mapping keycodes to Mopidy commands
 ```````````````````````````````````
@@ -65,7 +76,7 @@ The file `mopidyir.yaml </mopidyir.yaml>`_ contains:
   be configured)
 
 * The path of the IR receiver device to listen events from
-  
+
 * The mapping from Linux keycodes to Mopidy actions.
 
   Actions are identified by names: ``next_track``, ``previous_track``,
@@ -73,7 +84,7 @@ The file `mopidyir.yaml </mopidyir.yaml>`_ contains:
   ``play_favorite_stream``, ``play_random_album``, ``mute_unmute``,
   ``volume_up``, ```volume_down``.
 
-The default configuration and action names should be self explanatory… 
+The default configuration and action names should be self explanatory…
 
 Install
 ```````
