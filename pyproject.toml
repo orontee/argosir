@@ -1,21 +1,29 @@
-[tool.poetry]
+[project]
 name = "mopidyir"
-version = "0.1.0"
 description = "Mopidy callbacks to IR events"
-authors = ["Matthias Meulien <orontee@gmail.com>"]
+version = "0.2.0"
+authors = [{ name = "Matthias Meulien <orontee@gmail.com>", email = "orontee@gmail.com"}]
 license = "GPL-3.0"
+requires-python = ">= 3.13"
+dependencies = [
+       "evdev >= 1.9",
+       "aiohttp >= 3.11",
+       "pyyaml >= 6.0.2"
+]
 
-[tool.poetry.dependencies]
-python = "~3.11"
-evdev = "~1.9"
-aiohttp = "~3.11"
-pyyaml = "^6.0.2"
+[project.scripts]
+mopidyir = "mopidyir:main"
 
-[tool.poetry.group.dev.dependencies]
-pycodestyle = "~2.12"
-mypy = "~1.15"
-black = "~23.12"
+[dependency-groups]
+dev = [
+    "pycodestyle >= 2.12",
+    "mypy >= 1.15",
+    "black >= 23.12"
+]
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["setuptools >= 78"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []

@@ -390,7 +390,7 @@ _CALLBACKS: Dict[str, Callback] = {
 }
 
 
-if __name__ == "__main__":
+def main():
     parser = get_parser()
     args = parser.parse_args()
 
@@ -406,3 +406,7 @@ if __name__ == "__main__":
 
     loop = asyncio.new_event_loop()
     loop.run_until_complete(consumer(dev, keyconf_table))
+
+
+if __name__ == "__main__":
+    main()
