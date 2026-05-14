@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-KEYMAP_PATH="/etc/rc_keymaps/smsl_a8"
+KEYMAP_PATH="/etc/rc_keymaps/smsl_a8.toml"
 # Must match the remote control to be used, see rc_keymap man page
 
 ir-keytable -c -w "${KEYMAP_PATH}"
